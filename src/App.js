@@ -1,7 +1,7 @@
-import React, { useRef } from "react";
+import React from "react";
 import "./App.css";
-import axios from "axios";
 import "chartjs-adapter-moment";
+import { getBalance, getTransactions } from "./apis";
 
 import {
   Chart as ChartJS,
@@ -34,23 +34,35 @@ class App extends React.Component {
       balance: null,
     };
   }
+  componentDidMount() {
+    //API call for balance
+    getTransactions()
+      .then((response) => {
+        console.log(JSON.stringify(response.data));
+        this.setState({
+          balance: response.data,
+        });
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+
+    //API call for transactions
+    getBalance()
+      .then((response) => {
+        // calculate daily balance and transform to chartjs format
+        this.setState({
+          transactions: this.transformTransactions(response.data.transactions),
+        });
+      })
+      .catch((error) => {
+        console.log(error);
+      });
+  }
 
   transformTransactions(transactions) {
     /*
-    
-    x => group by day
-    y => balance for the day
-
-    The balance API returns the merchant's current balance.
-     In order to plot the cash flow on the chart, you will need to use the list of transactions to calculate a running balance after each day. 
-     As the current balance reflects the balance after all these transactions have occurred you will need to work backwards, adding or subtracting each daily amount. 
-    
-    find current_date_txn_amount
-
-    loop from highest date to the lowest date
-        current_date_running_balance = total_balance - current_date_txn
-        total_balance = current_date_running_balance
-    
+    this funtion calculates the running balance for everydates and tranfornms it into charjs datastructure  
      */
 
     // calc total transactions per day and group per day transactions
@@ -64,7 +76,6 @@ class App extends React.Component {
     }, {});
 
     //calc the lowest date
-
     let lowestDate = new Date(
       Math.min(...Object.keys(totalTransactionPerDay).map((e) => new Date(e)))
     );
@@ -75,20 +86,14 @@ class App extends React.Component {
     );
 
     //assign current day as the highest date
-
     var currentDay = highestDate;
     var dailyBalance = [];
     var lastDayBalance = this.state.balance.amount;
-
-    console.log("Transactions per day");
-    console.log(totalTransactionPerDay);
 
     //calc current date
 
     do {
       var currentDate = currentDay.toISOString().slice(0, 10);
-      console.log("processing", currentDate);
-      console.log("balance", lastDayBalance);
 
       if (!totalTransactionPerDay[currentDate]) {
         currentDay.setDate(currentDay.getDate() - 1);
@@ -100,11 +105,14 @@ class App extends React.Component {
 
       var currentDayBalance = lastDayBalance;
       totalTransactionPerDay[currentDate].forEach((txnOnCurrentDay) => {
-        currentDayBalance = currentDayBalance + txnOnCurrentDay;
+        if (txnOnCurrentDay < 0) {
+          currentDayBalance += Math.abs(txnOnCurrentDay);
+        } else {
+          currentDayBalance -= txnOnCurrentDay;
+        }
       });
 
       lastDayBalance = currentDayBalance;
-      console.log(currentDayBalance);
 
       dailyBalance.push({
         x: new Date(currentDay.valueOf()),
@@ -115,49 +123,6 @@ class App extends React.Component {
     } while (currentDay >= lowestDate);
 
     return dailyBalance;
-    console.log(dailyBalance);
-  }
-
-  //assign authorisation key to headers
-
-  componentDidMount() {
-    const headers = {
-      Authorization:
-        "34044a757e0385e54e8c5141bad3bb3abb463727afac3cccb8e31d313db9a370",
-    };
-
-    //API call for balance
-    axios
-      .get(
-        "https://uh4goxppjc7stkg24d6fdma4t40wxtly.lambda-url.eu-central-1.on.aws/balances",
-        { headers: headers }
-      )
-      .then((response) => {
-        console.log(JSON.stringify(response.data));
-        this.setState({
-          balance: response.data,
-        });
-      })
-      .catch((error) => {
-        console.log(error);
-      });
-
-    //API call for transactions
-
-    axios
-      .get(
-        "https://uh4goxppjc7stkg24d6fdma4t40wxtly.lambda-url.eu-central-1.on.aws/transactions",
-        { headers: headers }
-      )
-      .then((response) => {
-        console.log(JSON.stringify(response.data));
-        this.setState({
-          transactions: this.transformTransactions(response.data.transactions),
-        });
-      })
-      .catch((error) => {
-        console.log(error);
-      });
   }
 
   render() {
