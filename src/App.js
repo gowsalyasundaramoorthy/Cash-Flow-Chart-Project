@@ -36,11 +36,11 @@ class App extends React.Component {
   }
   componentDidMount() {
     //API call for balance
-    getTransactions()
+    getBalance()
       .then((response) => {
-        console.log(JSON.stringify(response.data));
+        console.log(JSON.stringify(response));
         this.setState({
-          balance: response.data,
+          balance: response,
         });
       })
       .catch((error) => {
@@ -48,11 +48,11 @@ class App extends React.Component {
       });
 
     //API call for transactions
-    getBalance()
+    getTransactions()
       .then((response) => {
         // calculate daily balance and transform to chartjs format
         this.setState({
-          transactions: this.transformTransactions(response.data.transactions),
+          transactions: this.transformTransactions(response.transactions),
         });
       })
       .catch((error) => {
