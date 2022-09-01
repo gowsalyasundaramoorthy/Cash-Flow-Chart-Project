@@ -32,6 +32,7 @@ class App extends React.Component {
     this.state = {
       transactions: [],
       balance: null,
+      scale: "day",
     };
   }
   componentDidMount() {
@@ -125,6 +126,13 @@ class App extends React.Component {
     return dailyBalance;
   }
 
+  changeScale(scale) {
+    /* get the element id and do the enum things here */
+    this.setState({
+      scale: scale,
+    });
+  }
+
   render() {
     const options = {
       responsive: true,
@@ -154,14 +162,16 @@ class App extends React.Component {
       ],
     };
 
-    console.log(data);
-
     return (
       <div className="App">
         <h3>Merchant foo</h3>
         <h2>
           {this.state.balance?.amount} {this.state.balance?.currency}
         </h2>
+        <div className="scales">
+          <button onClick={this.changeScale("week")}>Weekly</button>
+          <button onClick={this.changeScale("month")}>Monthly</button>
+        </div>
         <Line options={options} data={data} />
       </div>
     );
