@@ -1,7 +1,6 @@
 import { render, screen } from "@testing-library/react";
-import App from "./App";
+import App from "./OldApp";
 import axios from "axios";
-import { waitFor } from "@testing-library/react";
 import { getBalance, getTransactions } from "./apis";
 
 test("Test async", async () => {
@@ -27,7 +26,6 @@ test("Test async", async () => {
   axios.get = jest.fn().mockResolvedValue({ data: data });
   await expect(getTransactions()).resolves.toEqual(data);
 
-  // const linkElement = screen.getByText(/10000/i);
   const linkElement = screen.getByText(/Merchant foo/i);
   expect(linkElement).toBeInTheDocument();
 });

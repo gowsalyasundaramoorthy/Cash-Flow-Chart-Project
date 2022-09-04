@@ -1,29 +1,9 @@
 import React from "react";
 import "./App.css";
-import "chartjs-adapter-moment";
 import { getBalance, getTransactions } from "./apis";
-
-import {
-  Chart as ChartJS,
-  TimeScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from "chart.js";
-import { Line } from "react-chartjs-2";
-
-ChartJS.register(
-  TimeScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
+import Highcharts from "highcharts/highstock.src";
+import moment from "moment";
+import HighchartsReact from "highcharts-react-official";
 
 class App extends React.Component {
   constructor(props) {
@@ -31,29 +11,23 @@ class App extends React.Component {
 
     this.state = {
       transactions: [],
-      balance: null,
-      scale: "day",
+      balance: 0,
     };
   }
   componentDidMount() {
     //API call for balance
     getBalance()
       .then((response) => {
-        console.log(JSON.stringify(response));
         this.setState({
           balance: response,
         });
-      })
-      .catch((error) => {
-        console.log(error);
-      });
 
-    //API call for transactions
-    getTransactions()
-      .then((response) => {
-        // calculate daily balance and transform to chartjs format
-        this.setState({
-          transactions: this.transformTransactions(response.transactions),
+        //API call for transactions
+        getTransactions().then((response) => {
+          // calculate daily balance and transform to chartjs format
+          this.setState({
+            transactions: this.transformTransactions(response.transactions),
+          });
         });
       })
       .catch((error) => {
@@ -92,7 +66,6 @@ class App extends React.Component {
     var lastDayBalance = this.state.balance.amount;
 
     //calc current date
-
     do {
       var currentDate = currentDay.toISOString().slice(0, 10);
 
@@ -102,7 +75,7 @@ class App extends React.Component {
       }
 
       // if the current day balance is positive, add it from the total transaction of the current day
-      // if the current day balanace is negative, add it from the total transaction of the current day
+      // if the current day balanace is negative, subtract it from the total transaction of the current day
 
       var currentDayBalance = lastDayBalance;
       totalTransactionPerDay[currentDate].forEach((txnOnCurrentDay) => {
@@ -115,49 +88,101 @@ class App extends React.Component {
 
       lastDayBalance = currentDayBalance;
 
-      dailyBalance.push({
-        x: new Date(currentDay.valueOf()),
-        y: currentDayBalance,
-      });
-
+      dailyBalance.push([currentDay.valueOf(), currentDayBalance]);
       currentDay.setDate(currentDay.getDate() - 1);
     } while (currentDay >= lowestDate);
 
+    // Sort the dailybalance before ingesting into HighChart
+    dailyBalance.sort(function (a, b) {
+      // Compare the 2 dates
+      if (a[0] < b[0]) return -1;
+      if (a[0] > b[0]) return 1;
+      return 0;
+    });
+
     return dailyBalance;
   }
-
-  changeScale(scale) {
-    /* get the element id and do the enum things here */
-    this.setState({
-      scale: scale,
-    });
-  }
-
   render() {
+    const numberFormat = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "EUR",
+    });
+
     const options = {
-      responsive: true,
-      scales: {
-        x: {
-          stacked: true,
-          type: "time",
-          time: {
-            unit: "day",
+      xAxis: {
+        type: "datetime",
+      },
+      yAxis: [
+        {
+          gridLineColor: "transparent",
+          labels: {
+            formatter: function () {
+              return numberFormat.format(this.value);
+            },
+            align: "left",
           },
         },
-        y: {
-          stacked: true,
+      ],
+
+      tooltip: {
+        shared: true,
+        formatter: function () {
+          return (
+            numberFormat.format(this.y, 0) +
+            "</b><br/>" +
+            moment(this.x).format("MMMM Do YYYY, h:mm")
+          );
         },
       },
-    };
 
-    const data = {
-      datasets: [
+      chart: {
+        height: 700,
+        fill: true,
+        backgroundColor: "#202124",
+      },
+      rangeSelector: {
+        allButtonsEnabled: true,
+        buttons: [
+          {
+            type: "year",
+            count: 1,
+            text: "Day",
+            dataGrouping: {
+              forced: true,
+              units: [["day", [1]]],
+            },
+          },
+          {
+            type: "year",
+            count: 1,
+            text: "Week",
+            dataGrouping: {
+              forced: true,
+              units: [["week", [1]]],
+            },
+          },
+          {
+            type: "all",
+            count: 1,
+            text: "Month",
+            dataGrouping: {
+              forced: true,
+              units: [["month", [1]]],
+            },
+          },
+        ],
+
+        buttonTheme: {
+          width: 60,
+        },
+        selected: 2,
+      },
+      series: [
         {
-          label: "First dataset",
           data: this.state.transactions,
-          fill: true,
-          borderColor: "rgb(104, 157, 119)",
-          backgroundColor: "rgba(104, 157, 119,.1)",
+          tooltip: {
+            valueDecimals: 2,
+          },
         },
       ],
     };
@@ -169,10 +194,13 @@ class App extends React.Component {
           {this.state.balance?.amount} {this.state.balance?.currency}
         </h2>
         <div className="scales">
-          <button onClick={this.changeScale("week")}>Weekly</button>
-          <button onClick={this.changeScale("month")}>Monthly</button>
+          <HighchartsReact
+            constructorType={"stockChart"}
+            highcharts={Highcharts}
+            options={options}
+            ref={"chart"}
+          ></HighchartsReact>
         </div>
-        <Line options={options} data={data} />
       </div>
     );
   }

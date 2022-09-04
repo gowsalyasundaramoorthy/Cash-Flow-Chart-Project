@@ -1,4 +1,9 @@
 .App {
   color: #fff;
   background-color: #202124;
+  padding: 20px 40px;
+}
+
+.scales{
+  background-color: rgba(104, 157, 119, .1);
 }
